@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     BigInteger,
@@ -15,6 +16,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.infrastructure.models.base import Base
 from src.infrastructure.models.enums import TransactionStatusEnum
+
+if TYPE_CHECKING:
+    from src.infrastructure.models.user import User
 
 
 class Transaction(Base):
