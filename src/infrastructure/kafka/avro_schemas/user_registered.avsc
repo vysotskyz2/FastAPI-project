@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "UserRegisteredEvent",
+  "namespace": "transactionservice.events",
+  "fields": [
+    {"name": "user_id", "type": "long"},
+    {"name": "email", "type": "string"},
+    {"name": "occurred_at", "type": {"type": "long", "logicalType": "timestamp-millis"}}
+  ]
+}

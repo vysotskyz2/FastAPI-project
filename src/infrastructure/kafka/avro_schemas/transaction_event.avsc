@@ -1,0 +1,21 @@
+{
+  "type": "record",
+  "name": "TransactionEvent",
+  "namespace": "transactionservice.events",
+  "fields": [
+    {
+      "name": "event_type",
+      "type": {
+        "type": "enum",
+        "name": "TransactionEventType",
+        "symbols": ["CREATED", "ROLLBACKED"]
+      }
+    },
+    {"name": "transaction_id", "type": "long"},
+    {"name": "user_id", "type": "long"},
+    {"name": "currency", "type": "string"},
+    {"name": "amount", "type": {"type": "bytes", "logicalType": "decimal", "precision": 20, "scale": 8}},
+    {"name": "status", "type": "string"},
+    {"name": "occurred_at", "type": {"type": "long", "logicalType": "timestamp-millis"}}
+  ]
+}

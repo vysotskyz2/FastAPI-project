@@ -4,13 +4,41 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.application.services.transaction_service import TransactionService
 from src.application.services.user_service import UserService
 from src.infrastructure.database import async_session_factory
+from src.infrastructure.kafka.producer import EventProducer
+from src.infrastructure.kafka.transaction_consumer import TransactionConsumer
+from src.infrastructure.kafka.user_consumer import UserConsumer
 from src.infrastructure.repositories.balance_repository import BalanceRepository
 from src.infrastructure.repositories.transaction_repository import TransactionRepository
 from src.infrastructure.repositories.user_repository import UserRepository
+from src.settings import settings
 
 
 class Container(containers.DeclarativeContainer):
+    config = providers.Configuration()
+    config.from_dict(settings.model_dump())
+
     session_factory = providers.Singleton(lambda: async_session_factory)
+
+    event_producer = providers.Singleton(
+        EventProducer,
+        bootstrap_servers=config.kafka.bootstrap_servers,
+        topic_user_events=config.kafka.topic_user_events,
+        topic_transaction_events=config.kafka.topic_transaction_events,
+    )
+
+    user_consumer = providers.Singleton(
+        UserConsumer,
+        topic=config.kafka.topic_user_events,
+        bootstrap_servers=config.kafka.bootstrap_servers,
+        group_id=config.kafka.group_id,
+    )
+
+    transaction_consumer = providers.Singleton(
+        TransactionConsumer,
+        topic=config.kafka.topic_transaction_events,
+        bootstrap_servers=config.kafka.bootstrap_servers,
+        group_id=config.kafka.group_id,
+    )
 
     user_repository = providers.Factory(
         UserRepository,
@@ -30,6 +58,7 @@ class Container(containers.DeclarativeContainer):
         session=providers.Dependency(instance_of=AsyncSession),
         user_repository=user_repository,
         balance_repository=balance_repository,
+        event_producer=event_producer,
     )
 
     transaction_service = providers.Factory(
@@ -38,6 +67,7 @@ class Container(containers.DeclarativeContainer):
         user_repository=user_repository,
         balance_repository=balance_repository,
         transaction_repository=transaction_repository,
+        event_producer=event_producer,
     )
 
 
