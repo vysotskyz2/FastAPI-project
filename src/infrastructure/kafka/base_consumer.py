@@ -18,7 +18,7 @@ class BaseConsumer(ABC, Generic[MessageT]):
             group_id=group_id,
             value_deserializer=self._safe_deserialize,
             auto_offset_reset="earliest",
-            enable_auto_commit=True,
+            enable_auto_commit=False,
         )
 
     @staticmethod
