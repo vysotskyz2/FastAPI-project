@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.exceptions import (
@@ -6,10 +8,12 @@ from src.application.exceptions import (
     UserAlreadyExistsError,
     UserNotFoundError,
 )
+from src.infrastructure.kafka.producer import EventProducer
 from src.infrastructure.models import User
 from src.infrastructure.models.enums import UserStatusEnum
 from src.infrastructure.repositories.balance_repository import BalanceRepository
 from src.infrastructure.repositories.user_repository import UserRepository
+from src.infrastructure.schemas.kafka import UserRegisteredEvent
 
 
 class UserService:
@@ -18,10 +22,12 @@ class UserService:
         session: AsyncSession,
         user_repository: UserRepository,
         balance_repository: BalanceRepository,
+        event_producer: EventProducer | None = None,
     ) -> None:
         self._session = session
         self._users = user_repository
         self._balances = balance_repository
+        self._events = event_producer
 
     @staticmethod
     def normalize_email(email: str) -> str:
@@ -34,6 +40,14 @@ class UserService:
         user = await self._users.create(normalized)
         await self._balances.create_default_balances(user.id)
         await self._session.commit()
+        if self._events is not None:
+            await self._events.publish_user_registered(
+                UserRegisteredEvent(
+                    user_id=user.id,
+                    email=user.email,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
         return user
 
     async def update_status(self, user_id: int, new_status: UserStatusEnum) -> User:

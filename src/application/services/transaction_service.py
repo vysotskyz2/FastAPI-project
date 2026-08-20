@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,11 +12,13 @@ from src.application.exceptions import (
     UserBlockedError,
     UserNotFoundError,
 )
+from src.infrastructure.kafka.producer import EventProducer
 from src.infrastructure.models import Transaction
 from src.infrastructure.models.enums import TransactionStatusEnum, UserStatusEnum
 from src.infrastructure.repositories.balance_repository import BalanceRepository
 from src.infrastructure.repositories.transaction_repository import TransactionRepository
 from src.infrastructure.repositories.user_repository import UserRepository
+from src.infrastructure.schemas.kafka import TransactionEvent, TransactionEventType
 
 
 class TransactionService:
@@ -25,11 +28,13 @@ class TransactionService:
         user_repository: UserRepository,
         balance_repository: BalanceRepository,
         transaction_repository: TransactionRepository,
+        event_producer: EventProducer | None = None,
     ) -> None:
         self._session = session
         self._users = user_repository
         self._balances = balance_repository
         self._transactions = transaction_repository
+        self._events = event_producer
 
     async def create_transaction(self, user_id: int, currency: str, amount: Decimal) -> Transaction:
         user = await self._users.get_by_id(user_id)
@@ -48,6 +53,18 @@ class TransactionService:
 
         transaction = await self._transactions.create(user_id, currency, amount)
         await self._session.commit()
+        if self._events is not None:
+            await self._events.publish_transaction_event(
+                TransactionEvent(
+                    event_type=TransactionEventType.CREATED,
+                    transaction_id=transaction.id,
+                    user_id=user_id,
+                    currency=currency,
+                    amount=amount,
+                    status=transaction.status,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
         return transaction
 
     async def rollback_transaction(self, user_id: int, transaction_id: int) -> Transaction:
@@ -78,6 +95,18 @@ class TransactionService:
 
         await self._transactions.mark_rollbacked(transaction_id)
         await self._session.commit()
+        if self._events is not None:
+            await self._events.publish_transaction_event(
+                TransactionEvent(
+                    event_type=TransactionEventType.ROLLBACKED,
+                    transaction_id=transaction.id,
+                    user_id=user_id,
+                    currency=transaction.currency,
+                    amount=transaction.amount,
+                    status=TransactionStatusEnum.ROLLBACKED.value,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
         return transaction
 
     async def list_transactions(
