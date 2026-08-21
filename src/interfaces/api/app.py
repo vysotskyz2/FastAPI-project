@@ -19,6 +19,8 @@ async def lifespan(app: FastAPI):
     event_producer = container.event_producer()
     await event_producer.start()
 
+    clickhouse_client = container.clickhouse_client()
+
     consumers = [
         container.user_consumer(),
         container.transaction_consumer(),
@@ -34,6 +36,7 @@ async def lifespan(app: FastAPI):
     for consumer in consumers:
         await consumer.stop()
     await event_producer.stop()
+    await clickhouse_client.close()
     logger.info("Kafka consumers stopped")
 
 
