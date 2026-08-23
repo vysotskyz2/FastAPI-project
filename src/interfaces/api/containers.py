@@ -3,6 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.services.transaction_service import TransactionService
 from src.application.services.user_service import UserService
+from src.infrastructure.clickhouse.client import create_async_client
+from src.infrastructure.clickhouse.stats_repository import StatsRepository
 from src.infrastructure.database import async_session_factory
 from src.infrastructure.kafka.producer import EventProducer
 from src.infrastructure.kafka.transaction_consumer import TransactionConsumer
@@ -26,11 +28,19 @@ class Container(containers.DeclarativeContainer):
         topic_transaction_events=config.kafka.topic_transaction_events,
     )
 
+    clickhouse_client = providers.Singleton(create_async_client)
+
+    stats_repository = providers.Singleton(
+        StatsRepository,
+        client=clickhouse_client,
+    )
+
     user_consumer = providers.Singleton(
         UserConsumer,
         topic=config.kafka.topic_user_events,
         bootstrap_servers=config.kafka.bootstrap_servers,
         group_id=config.kafka.group_id,
+        stats_repository=stats_repository,
     )
 
     transaction_consumer = providers.Singleton(
@@ -38,6 +48,7 @@ class Container(containers.DeclarativeContainer):
         topic=config.kafka.topic_transaction_events,
         bootstrap_servers=config.kafka.bootstrap_servers,
         group_id=config.kafka.group_id,
+        stats_repository=stats_repository,
     )
 
     user_repository = providers.Factory(

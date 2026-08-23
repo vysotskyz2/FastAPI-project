@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
 
-from aiokafka import AIOKafkaConsumer
+from aiokafka import AIOKafkaConsumer, TopicPartition
 from loguru import logger
 from pydantic import BaseModel
 
@@ -37,7 +37,8 @@ class BaseConsumer(ABC, Generic[MessageT]):
         logger.info("Consumer started for topic '{}'", self.topic)
         try:
             async for msg in self._consumer:
-                await self._handle(msg.value)
+                if await self._handle(msg.value):
+                    await self._commit(msg.topic, msg.partition, msg.offset)
         finally:
             await self._consumer.stop()
             logger.info("Consumer stopped for topic '{}'", self.topic)
@@ -45,13 +46,19 @@ class BaseConsumer(ABC, Generic[MessageT]):
     async def stop(self) -> None:
         await self._consumer.stop()
 
-    async def _handle(self, message: MessageT | None) -> None:
+    async def _commit(self, topic: str, partition: int, offset: int) -> None:
+        tp = TopicPartition(topic, partition)
+        await self._consumer.commit({tp: offset + 1})
+
+    async def _handle(self, message: MessageT | None) -> bool:
         if message is None:
-            return
+            return True
         try:
             await self.process_message(message)
         except Exception:
             logger.exception("Failed to process message on topic '{}'", self.topic)
+            return False
+        return True
 
     @abstractmethod
     async def process_message(self, message: MessageT) -> None:
