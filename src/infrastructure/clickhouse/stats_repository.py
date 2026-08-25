@@ -3,6 +3,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from clickhouse_connect.driver.asyncclient import AsyncClient
+from clickhouse_connect.driver.query import QueryResult
 
 from src.infrastructure.schemas.kafka import TransactionEvent, UserRegisteredEvent
 
@@ -20,7 +21,28 @@ _TRANSACTION_EVENTS_COLUMNS = [
     "created",
 ]
 
-_WEEKLY_REPORT_SQL = (_QUERIES_DIR / "weekly_report.sql").read_text(encoding="utf-8")
+WEEKLY_REPORT_SQL = (_QUERIES_DIR / "weekly_report.sql").read_text(encoding="utf-8")
+
+
+def map_weekly_rows(result: QueryResult) -> list[dict]:
+    rows: list[dict] = []
+    for row in result.named_results():
+        rows.append(
+            {
+                "start_date": row["week"],
+                "end_date": row["week"] + timedelta(days=7),
+                "registered_users_count": row["registered_users_count"] or 0,
+                "registered_and_deposit_users_count": row["registered_and_deposit_users_count"] or 0,
+                "registered_and_not_rollbacked_deposit_users_count": (
+                    row["registered_and_not_rollbacked_deposit_users_count"] or 0
+                ),
+                "not_rollbacked_deposit_amount": row["not_rollbacked_deposit_amount"] or Decimal("0"),
+                "not_rollbacked_withdraw_amount": row["not_rollbacked_withdraw_amount"] or Decimal("0"),
+                "transactions_count": row["transactions_count"] or 0,
+                "not_rollbacked_transactions_count": row["not_rollbacked_transactions_count"] or 0,
+            }
+        )
+    return rows
 
 
 class StatsRepository:
@@ -52,22 +74,5 @@ class StatsRepository:
         )
 
     async def aggregate_weekly(self, weeks: int = 52) -> list[dict]:
-        result = await self._client.query(_WEEKLY_REPORT_SQL, parameters={"weeks": weeks})
-        rows: list[dict] = []
-        for row in result.named_results():
-            rows.append(
-                {
-                    "start_date": row["week"],
-                    "end_date": row["week"] + timedelta(days=7),
-                    "registered_users_count": row["registered_users_count"] or 0,
-                    "registered_and_deposit_users_count": row["registered_and_deposit_users_count"] or 0,
-                    "registered_and_not_rollbacked_deposit_users_count": (
-                        row["registered_and_not_rollbacked_deposit_users_count"] or 0
-                    ),
-                    "not_rollbacked_deposit_amount": row["not_rollbacked_deposit_amount"] or Decimal("0"),
-                    "not_rollbacked_withdraw_amount": row["not_rollbacked_withdraw_amount"] or Decimal("0"),
-                    "transactions_count": row["transactions_count"] or 0,
-                    "not_rollbacked_transactions_count": row["not_rollbacked_transactions_count"] or 0,
-                }
-            )
-        return rows
+        result = await self._client.query(WEEKLY_REPORT_SQL, parameters={"weeks": weeks})
+        return map_weekly_rows(result)

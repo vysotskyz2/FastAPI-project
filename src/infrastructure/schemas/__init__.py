@@ -3,6 +3,12 @@ from src.infrastructure.schemas.kafka import (
     TransactionEventType,
     UserRegisteredEvent,
 )
+from src.infrastructure.schemas.report import (
+    ReportCreateRead,
+    ReportRead,
+    ReportStatus,
+    WeeklyReportRow,
+)
 from src.infrastructure.schemas.transaction import TransactionCreate, TransactionRead
 from src.infrastructure.schemas.user import (
     UserBalanceRead,
@@ -13,6 +19,9 @@ from src.infrastructure.schemas.user import (
 )
 
 __all__ = [
+    "ReportCreateRead",
+    "ReportRead",
+    "ReportStatus",
     "TransactionCreate",
     "TransactionEvent",
     "TransactionEventType",
@@ -23,4 +32,5 @@ __all__ = [
     "UserRead",
     "UserRegisteredEvent",
     "UserUpdate",
+    "WeeklyReportRow",
 ]

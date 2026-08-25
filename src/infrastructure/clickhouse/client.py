@@ -12,5 +12,6 @@ def create_async_client() -> AsyncClient:
         password=settings.clickhouse.password,
         database=settings.clickhouse.db,
         interface="http",
+        autogenerate_session_id=False,
     )
     return AsyncClient(client=sync_client)
