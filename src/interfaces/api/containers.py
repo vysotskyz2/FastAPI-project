@@ -1,6 +1,7 @@
 from dependency_injector import containers, providers
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.services.report_service import ReportService
 from src.application.services.transaction_service import TransactionService
 from src.application.services.user_service import UserService
 from src.infrastructure.clickhouse.client import create_async_client
@@ -80,6 +81,8 @@ class Container(containers.DeclarativeContainer):
         transaction_repository=transaction_repository,
         event_producer=event_producer,
     )
+
+    report_service = providers.Singleton(ReportService)
 
 
 container = Container()
