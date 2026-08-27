@@ -15,7 +15,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-def get_user_service(session: AsyncSession = Depends(get_session)) -> UserService:
+async def get_user_service(session: AsyncSession = Depends(get_session)) -> UserService:
     return container.user_service(
         session=session,
         user_repository__session=session,
@@ -23,7 +23,7 @@ def get_user_service(session: AsyncSession = Depends(get_session)) -> UserServic
     )
 
 
-def get_transaction_service(session: AsyncSession = Depends(get_session)) -> TransactionService:
+async def get_transaction_service(session: AsyncSession = Depends(get_session)) -> TransactionService:
     return container.transaction_service(
         session=session,
         user_repository__session=session,
@@ -32,5 +32,5 @@ def get_transaction_service(session: AsyncSession = Depends(get_session)) -> Tra
     )
 
 
-def get_report_service() -> ReportService:
+async def get_report_service() -> ReportService:
     return container.report_service()
